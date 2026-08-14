@@ -14,9 +14,7 @@ export const greet = new Command('greet')
   .argument('<name>', '要打招呼的人的名字')
   .option('-e, --excited', '是否添加感叹号')
   .option('-r, --repeat <number>', '重复次数', '1')
-  .action((name, options) => {
-    // 1. 手动解析和校验
-    try {
+  .action(async(name, options) => {
       const validated = GreetSchema.parse({
         name,
         excited: options.excited || false,
@@ -24,18 +22,13 @@ export const greet = new Command('greet')
       });
 
       const { name: validatedName, excited, repeat } = validated;
-
-      const message = `Hello, ${validatedName}${excited ? '!' : '.'}`;
-      for (let i = 0; i < repeat; i++) {
-        logger.success(message);
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        logger.error('参数校验失败:');
-        console.error(error.message);   // 简单输出错误摘要
-      } else {
-        logger.error('未知错误');
-      }
-      process.exit(1);
-    }
+      await greetAction(validatedName, { excited, repeat });
   });
+
+export async function greetAction(name: string, options: { excited: boolean; repeat: number }) {
+    const { excited, repeat } = options;
+    const message = `Hello, ${name}${excited ? '!' : '.'}`;
+    for (let i = 0; i < repeat; i++) {
+      logger.success(message);
+    }
+};

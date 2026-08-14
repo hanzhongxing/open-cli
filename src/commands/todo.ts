@@ -9,7 +9,11 @@ const todos: string[] = [];
 export const todo = new Command('todo')
   .description('管理你的待办事项')
   .action(async () => {
-    intro(pc.bgCyan('  Todo Manager '));
+    await todoAction();
+  });
+
+export async function todoAction() {
+   intro(pc.bgCyan('  Todo Manager '));
 
     let exit = false;
 
@@ -73,4 +77,4 @@ export const todo = new Command('todo')
     }
 
     outro('再见！');
-  });
+}
