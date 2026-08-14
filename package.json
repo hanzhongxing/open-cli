@@ -20,7 +20,7 @@
   ],
   "author": "hanzhongxing",
   "license": "MIT",
-  "description": "乐学 cli",
+  "description": "open cli",
   "dependencies": {
     "@clack/prompts": "^1.2.0",
     "commander": "^13.1.0",

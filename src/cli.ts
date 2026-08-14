@@ -8,8 +8,8 @@ const packageJson = require('../package.json');
 const program = new Command();
 
 program
-  .name('my-cli')
-  .description('一个现代的 TypeScript CLI 工具')
+  .name('open-cli')
+  .description('TypeScript CLI 工具 open cli')
   .version(packageJson.version);
 
 program.addCommand(greet);
