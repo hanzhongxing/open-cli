@@ -5,6 +5,7 @@ import pc from 'picocolors';
 
 import { greetAction } from './greet.js';
 import { todoAction } from './todo.js';
+import { customAction } from './custom.js';
 
 const todos: string[] = [];
 
@@ -18,19 +19,23 @@ export const home = new Command('home')
     while (!exit) {
       // 1. 选择操作
       const action = await select({
-        message: '来了老弟~~~',
+        message: '请选择一个操作:',
         options: [
+          { value: 'custom', label: '自定义命令' },
           { value: 'todo', label: '待办' },
           { value: 'greet', label: '生成' },
           { value: 'exit', label: '拜拜' },
         ],
       });
-
+ 
       if (isCancel(action)) {
         outro('操作已取消');
         return;
       }
-
+      console.log();
+      if (action === 'custom') {
+        await customAction();
+      } 
       if (action === 'todo') {
          await todoAction();
       } 
