@@ -10,7 +10,7 @@ export const todo = new Command('todo')
   .description('管理你的待办事项')
   .action(async () => {
     await todoAction();
-  });
+});
 
 export async function todoAction() {
    intro(pc.bgCyan('  Todo Manager '));
