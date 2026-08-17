@@ -133,7 +133,9 @@ export async function customAction() {
           }
           break;
         }
-
+        case 'hello':
+          console.log('hello '+args.join(' '));
+        break;
         case 'exit':
         case 'quit':
           console.log('退出交互环境');
