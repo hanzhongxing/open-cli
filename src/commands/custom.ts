@@ -16,9 +16,15 @@ export async function customAction() {
     prompt: '> ',
   });
 
-  // 捕获 SIGINT (Ctrl+C)，优雅退出
+  // 保存并恢复 stdin 状态，避免与 @clack/prompts 冲突
+  const wasRawMode = process.stdin.isTTY ? process.stdin.isRaw : false;
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(false);
+  }
+
+  // 捕获 SIGINT (Ctrl+C)，优雅返回
   const sigintHandler = () => {
-    console.log('\n检测到 Ctrl+C，输入 exit 退出或继续操作。');
+    console.log('\n已中断，输入 exit 退出自定义环境。');
     rl.prompt();
   };
   process.on('SIGINT', sigintHandler);
@@ -27,9 +33,7 @@ export async function customAction() {
   rl.prompt();
 
   rl.on('line', async (line) => {
-    process.stdout.write('\n')
     const input = line.trim();
-    console.log();
     if (!input) {
       rl.prompt();
       return;
@@ -44,9 +48,9 @@ export async function customAction() {
           console.log(`
             可用命令:
               greet <name> [-e|--excited] [-r|--repeat <number>]  - 打招呼
-              exec <command>                                  - 执行系统命令（谨慎使用）
-              exit / quit                                     - 退出交互环境
-                      `);
+              exec <command>                                       - 执行系统命令（谨慎使用）
+              exit / quit                                          - 退出交互环境
+            `);
           break;
 
         case 'greet': {
@@ -87,7 +91,7 @@ export async function customAction() {
           break;
         }
         case 'hello':
-          console.log('hello! '+args[0]);
+          console.log('hello! ' + args[0]);
           break;
         case 'exit':
         case 'quit':
@@ -108,6 +112,10 @@ export async function customAction() {
   rl.on('close', () => {
     // 移除信号监听
     process.off('SIGINT', sigintHandler);
+    // 恢复 stdin 原始模式，确保 @clack/prompts 能正常工作
+    if (process.stdin.isTTY && wasRawMode) {
+      process.stdin.setRawMode(true);
+    }
     process.exit(0);
   });
 }
