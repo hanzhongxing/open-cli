@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { ScriptCommand } from '../commands/types/command.js';
+import type { ScriptCommand } from '../types/command.js';
 
 // 获取当前文件所在目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,15 +13,15 @@ export async function loadScriptCommands(): Promise<Map<string, ScriptCommand>> 
 
   // 智能寻找 scripts 目录（开发环境找 src/scripts，打包后找 dist/scripts）
   const candidateDirs = [
-    path.resolve(__dirname, '../commands/scripts'),
-    path.resolve(process.cwd(), 'src/commands/scripts'),
-    path.resolve(process.cwd(), 'dist/commands/scripts'),
+    path.resolve(__dirname, '../scripts'),
+    path.resolve(process.cwd(), 'src/scripts'),
+    path.resolve(process.cwd(), 'dist/scripts'),
   ];
 
   const scriptsDir = candidateDirs.find((dir) => existsSync(dir));
 
   if (!scriptsDir) {
-    console.warn('[Loader] ⚠️ 未找到 scripts 目录，请确保 src/commands/scripts 文件夹存在！');
+    console.warn('[Loader] ⚠️ 未找到 scripts 目录，请确保 src/scripts 文件夹存在！');
     return commands;
   }
 

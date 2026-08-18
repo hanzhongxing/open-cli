@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { loadScriptCommands } from '../lib/loader.js';
-import type { ScriptCommand } from '../commands/types/command.js';
+import type { ScriptCommand } from '../types/command.js';
 import pc from 'picocolors';
 
 export async function customAction(): Promise<void> {
