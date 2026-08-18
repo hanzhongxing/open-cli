@@ -10,7 +10,7 @@ import pc from 'picocolors';
 export async function customAction(): Promise<void> {
   const commands = await loadScriptCommands();
 
-  logger.info('进入自定义命令环境 (已加载 ${commands.size} 个命令)，输入 help 查看可用命令，输入 exit 退出。');
+  logger.info(`进入自定义命令环境 (已加载 ${commands.size} 个命令)，输入 help 查看可用命令，输入 exit 退出。`);
 
   const rl = readline.createInterface({ input, output });
 
