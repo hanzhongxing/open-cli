@@ -4,12 +4,13 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { loadScriptCommands } from '../lib/loader.js';
 import type { ScriptCommand } from '../types/command.js';
+import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 
 export async function customAction(): Promise<void> {
   const commands = await loadScriptCommands();
 
-  console.log(pc.cyan(`\n进入自定义命令环境 (已加载 ${commands.size} 个命令)，输入 help 查看可用命令，输入 exit 退出。\n`));
+  logger.info('进入自定义命令环境 (已加载 ${commands.size} 个命令)，输入 help 查看可用命令，输入 exit 退出。');
 
   const rl = readline.createInterface({ input, output });
 
@@ -36,7 +37,7 @@ export async function customAction(): Promise<void> {
       const args = parts.slice(1);
 
       if (commandName === 'exit' || commandName === 'quit') {
-        console.log(pc.yellow('返回主菜单...'));
+        logger.info(pc.yellow('返回主菜单...'));
         break;
       }
 
@@ -50,10 +51,10 @@ export async function customAction(): Promise<void> {
         try {
           await cmd.run(args);
         } catch (err: any) {
-          console.error(pc.red(`命令执行出错: ${err.message}`));
+          logger.error(pc.red(`命令执行出错: ${err.message}`));
         }
       } else {
-        console.log(pc.red(`未知命令: "${commandName}"，输入 help 查看帮助。`));
+        logger.error(pc.red(`未知命令: "${commandName}"，输入 help 查看帮助。`));
       }
     }
   } finally {
@@ -64,16 +65,16 @@ export async function customAction(): Promise<void> {
 
 // 帮助信息打印函数保持不变...
 function printHelp(commands: Map<string, ScriptCommand>) {
-  console.log(pc.bold('\n可用命令列表:'));
+  logger.info(pc.bold('\n可用命令列表:'));
   const uniqueCmds = Array.from(new Set(commands.values()));
   const maxLen = uniqueCmds.reduce((max, c) => Math.max(max, (c.usage || c.name || '').length), 10);
 
   for (const cmd of uniqueCmds) {
     const trigger = (cmd.usage || cmd.name || '').padEnd(maxLen + 4);
     const aliasInfo = cmd.aliases?.length ? pc.gray(` [别名: ${cmd.aliases.join(', ')}]`) : '';
-    console.log(`  ${pc.cyan(trigger)} ${cmd.description}${aliasInfo}`);
+    logger.info(`  ${pc.cyan(trigger)} ${cmd.description}${aliasInfo}`);
   }
-  console.log(`  ${pc.cyan('exit / quit'.padEnd(maxLen + 4))} 返回主菜单\n`);
+  logger.info(`  ${pc.cyan('exit / quit'.padEnd(maxLen + 4))} 返回主菜单\n`);
 }
 
 export const custom = new Command('custom')

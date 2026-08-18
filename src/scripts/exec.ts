@@ -2,6 +2,7 @@
 import type { ScriptCommand } from '../types/command.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 
 const execAsync = promisify(exec);
@@ -18,10 +19,10 @@ const command: ScriptCommand = {
     }
     try {
       const { stdout, stderr } = await execAsync(args.join(' '));
-      if (stdout) console.log(stdout.trimEnd());
-      if (stderr) console.error(pc.red(stderr.trimEnd()));
+      if (stdout) logger.info(stdout.trimEnd());
+      if (stderr) logger.error(pc.red(stderr.trimEnd()));
     } catch (err: any) {
-      console.error(pc.red(`执行失败: ${err.message}`));
+      logger.error(pc.red(`执行失败: ${err.message}`));
     }
   },
 };
