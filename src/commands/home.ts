@@ -28,7 +28,6 @@ export const home = new Command('home')
         outro('操作已取消');
         return;
       }
-      console.log();
       switch (action) {
         case 'custom':
           await customAction();

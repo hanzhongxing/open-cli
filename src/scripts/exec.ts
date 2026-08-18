@@ -14,7 +14,7 @@ const command: ScriptCommand = {
   aliases: ['run', '$'],
   async run(args) {
     if (!args.length) {
-      console.log(pc.red('用法: ' + this.usage));
+      logger.warn(pc.red('用法: ' + this.usage));
       return;
     }
     try {
