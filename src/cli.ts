@@ -18,17 +18,16 @@ if (major < 20) {
   process.exit(1);
 }
 
-
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ status: 'ok', env: config.env }));
 });
 
 logger.info(`当前环境: ${config.env}`);
-// 使用分层合并计算后的最终端口
-server.listen(config.server.port, config.server.host, () => {
-  // logger.info(`[${config.env.toUpperCase()}] Server running at http://${config.server.host}:${config.server.port}`);
-});
+// fixme 此处可能用不上
+// server.listen(config.server.port, config.server.host, () => {
+//   // logger.info(`[${config.env.toUpperCase()}] Server running at http://${config.server.host}:${config.server.port}`);
+// });
 
 const program = new Command();
 
