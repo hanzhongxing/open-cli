@@ -3,6 +3,7 @@ import path from 'node:path';
 import util from 'node:util';
 import pc from 'picocolors';
 
+// ==================== 类型定义 ====================
 export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
 
 const LOG_LEVELS: Record<LogLevel, number> = {
@@ -14,67 +15,118 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 };
 
 export interface LoggerOptions {
-  /** 日志级别，默认 'info' */
+  /** 日志级别，默认 'info'，若环境变量 DEBUG=1 则自动设为 'debug' */
   level?: LogLevel;
-  /** CLI 命名空间前缀，如 'open-cli' */
+  /** CLI 命名空间前缀，如 'my-app' */
   prefix?: string;
-  /** 是否开启文件日志，默认 true */
+  /** 是否启用文件日志，默认 true */
   fileLog?: boolean;
-  /** 日志存储目录，默认 './logs' */
+  /** 日志存储目录，默认 './logs' 或环境变量 LOG_DIR */
   logDir?: string;
-  /** 日志文件名前缀，默认 'open-cli' -> 生成 'open-cli-2025-05-20.log' */
+  /** 日志文件名前缀，如 'app' -> 'app-2025-05-20.log' */
   filePrefix?: string;
-  /** 日志最大保留天数，默认 15 天，超过自动清理 */
+  /** 日志最大保留天数，默认 15 天 */
   maxDays?: number;
-  /** 缓冲队列最大条数，达到阈值立即 flush，默认 100 */
+  /** 缓冲队列达到此阈值立即异步落盘，默认 100 */
   bufferSize?: number;
-  /** 缓冲刷新间隔 (毫秒)，默认 200ms */
+  /** 缓冲队列硬上限，防高并发 OOM 内存溢出，默认 5000 */
+  maxBufferSize?: number;
+  /** 定时刷新间隔（毫秒），默认 200ms */
   flushInterval?: number;
+  /** 是否始终输出 Error 的完整堆栈，默认 true */
+  alwaysShowStack?: boolean;
 }
 
 // 过滤 ANSI 颜色控制字符
 const ANSI_REGEX = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~]))/g;
 
+/** 正则特殊字符转义工具 */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ==================== Logger 核心类 ====================
 class Logger {
-  private level: LogLevel = 'info';
-  private prefix: string = '';
-  private fileLog: boolean = true;
+  // ---------- 配置属性 ----------
+  private level: LogLevel;
+  private prefix: string;
+  private fileLog: boolean;
   private logDir: string;
   private filePrefix: string;
   private maxDays: number;
   private bufferSize: number;
+  private maxBufferSize: number;
   private flushInterval: number;
+  private alwaysShowStack: boolean;
 
-  // 内部流与缓冲管理
+  // ---------- 运行状态 ----------
   private currentStream: fs.WriteStream | null = null;
   private currentDateStr: string = '';
   private currentFilePath: string = '';
   private buffer: string[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
-  private isDegraded: boolean = false; // 是否降级为仅控制台
+  private isDegraded: boolean = false; // 是否降级到仅控制台
+  private isExiting: boolean = false;  // 防止退出钩子重复执行
+  private isWriting: boolean = false;  // 写入锁，避免并发乱序
 
   constructor(options?: LoggerOptions) {
-    this.level = options?.level || (process.env.DEBUG ? 'debug' : 'info');
-    this.prefix = options?.prefix || '';
+    this.level = options?.level ?? (process.env.DEBUG ? 'debug' : 'info');
+    this.prefix = options?.prefix ?? '';
     this.fileLog = options?.fileLog ?? true;
-    this.logDir = options?.logDir || process.env.LOG_DIR || path.resolve(process.cwd(), 'logs');
-    this.filePrefix = options?.filePrefix || 'open-cli';
+    this.logDir = options?.logDir ?? process.env.LOG_DIR ?? path.resolve(process.cwd(), 'logs');
+    this.filePrefix = options?.filePrefix ?? 'open-cli';
     this.maxDays = options?.maxDays ?? 15;
     this.bufferSize = options?.bufferSize ?? 100;
+    this.maxBufferSize = options?.maxBufferSize ?? 5000;
     this.flushInterval = options?.flushInterval ?? 200;
+    this.alwaysShowStack = options?.alwaysShowStack ?? true;
 
     if (this.fileLog) {
       this.initFileLogger();
     }
   }
 
+  // ---------- 公开 API ----------
   public setLevel(level: LogLevel) {
     this.level = level;
   }
 
-  /**
-   * 初始化文件日志系统、退出钩子及清理任务
-   */
+  public info(...args: any[]) {
+    if (!this.canLog('info')) return;
+    const msg = this.formatArgs(args);
+    console.log(this.formatConsolePrefix() + pc.cyan('ℹ'), msg);
+    this.writeToFile('INFO', msg);
+  }
+
+  public success(...args: any[]) {
+    if (!this.canLog('info')) return;
+    const msg = this.formatArgs(args);
+    console.log(this.formatConsolePrefix() + pc.green('✔'), msg);
+    this.writeToFile('SUCCESS', msg);
+  }
+
+  public warn(...args: any[]) {
+    if (!this.canLog('warn')) return;
+    const msg = this.formatArgs(args);
+    console.warn(this.formatConsolePrefix() + pc.yellow('⚠'), msg);
+    this.writeToFile('WARN', msg);
+  }
+
+  public error(...args: any[]) {
+    if (!this.canLog('error')) return;
+    const msg = this.formatArgs(args);
+    console.error(this.formatConsolePrefix() + pc.red('✖'), msg);
+    this.writeToFile('ERROR', msg);
+  }
+
+  public debug(...args: any[]) {
+    if (!this.canLog('debug')) return;
+    const msg = this.formatArgs(args);
+    console.debug(this.formatConsolePrefix() + pc.magenta('⚙ [DEBUG]'), msg);
+    this.writeToFile('DEBUG', msg);
+  }
+
+  // ---------- 私有核心方法 ----------
   private initFileLogger() {
     try {
       if (!fs.existsSync(this.logDir)) {
@@ -83,10 +135,10 @@ class Logger {
       this.rotateStreamIfNeeded();
       this.startFlushTimer();
       this.registerExitHooks();
-      // 启动时异步清理一次过期日志
+      // 启动时异步清理过期日志
       this.cleanOldLogs().catch(() => {});
     } catch (err: any) {
-      this.handleStreamError(new Error(`Failed to initialize log directory: ${err.message}`));
+      this.handleStreamError(new Error(`Failed to init logger directory: ${err.message}`));
     }
   }
 
@@ -106,7 +158,7 @@ class Logger {
   }
 
   /**
-   * 检查并执行跨天轮转流
+   * 检查日期，若跨天则平滑切换文件流
    */
   private rotateStreamIfNeeded() {
     if (this.isDegraded) return;
@@ -116,10 +168,12 @@ class Logger {
       return;
     }
 
-    // 跨天了：先 flush 旧缓冲并关闭旧流
+    // 跨天：同步刷出旧日志并关闭旧流
     this.flushBufferSync();
     if (this.currentStream) {
-      this.currentStream.end();
+      try {
+        this.currentStream.end();
+      } catch {}
       this.currentStream = null;
     }
 
@@ -131,13 +185,9 @@ class Logger {
         flags: 'a',
         encoding: 'utf8',
       });
-
-      // 监听流异常：实现降级，防止进程因 IO 崩溃
-      this.currentStream.on('error', (err) => {
-        this.handleStreamError(err);
-      });
-
-      // 跨天时触发一次历史日志清理
+      this.currentStream.on('error', (err) => this.handleStreamError(err));
+      
+      // 跨天时触发过期日志清理
       this.cleanOldLogs().catch(() => {});
     } catch (err: any) {
       this.handleStreamError(err);
@@ -145,58 +195,69 @@ class Logger {
   }
 
   /**
-   * 异常降级处理
+   * 降级处理：文件写失败时仅控制台输出，防止进程挂掉
    */
   private handleStreamError(err: Error) {
     if (this.isDegraded) return;
     this.isDegraded = true;
     this.fileLog = false;
 
-    // 输出严重警告到标准错误
     process.stderr.write(
-      pc.red(`\n[Logger Error] File logging failed, degrading to console only. Cause: ${err.message}\n`)
+      pc.red(`\n[Logger System Error] File logging degraded to console only. Cause: ${err.message}\n`)
     );
 
     if (this.currentStream) {
-      try {
-        this.currentStream.destroy();
-      } catch {}
+      try { this.currentStream.destroy(); } catch {}
       this.currentStream = null;
     }
   }
 
-  /**
-   * 开启定时刷新缓冲区
-   */
-  private startFlushTimer() {
-    if (this.flushTimer) clearInterval(this.flushTimer);
-    this.flushTimer = setInterval(() => {
+  // ---------- 缓冲与落盘 ----------
+  private writeToFile(level: string, message: string) {
+    if (!this.fileLog || this.isDegraded) return;
+
+    const cleanMsg = message.replace(ANSI_REGEX, '');
+    const logLine = `[${this.getTimestamp()}] [${level.toUpperCase()}] ${this.prefix ? `[${this.prefix}] ` : ''}${cleanMsg}\n`;
+
+    // 内存硬上限防护：防突发流量导致 OOM
+    if (this.buffer.length >= this.maxBufferSize) {
+      this.buffer.shift(); // 丢弃最老的一条
+    }
+
+    this.buffer.push(logLine);
+
+    if (this.buffer.length >= this.bufferSize) {
       this.flushBufferAsync();
-    }, this.flushInterval);
-
-    // unref 允许 Node 进程在只有定时器时正常退出
-    this.flushTimer.unref();
-  }
-
-  /**
-   * 异步刷新内存日志缓冲区到流
-   */
-  private flushBufferAsync() {
-    if (this.buffer.length === 0 || !this.currentStream || this.isDegraded) return;
-
-    this.rotateStreamIfNeeded();
-    const chunk = this.buffer.join('');
-    this.buffer = [];
-
-    if (this.currentStream && this.currentStream.writable) {
-      this.currentStream.write(chunk, (err) => {
-        if (err) this.handleStreamError(err);
-      });
     }
   }
 
   /**
-   * 进程退出时的同步阻塞写入（保证最后一条日志不丢）
+   * 异步安全刷新缓冲区（带并发锁）
+   */
+  private flushBufferAsync() {
+    if (this.buffer.length === 0 || !this.currentStream || this.isDegraded || this.isWriting) {
+      return;
+    }
+
+    this.rotateStreamIfNeeded();
+    const chunk = this.buffer.join('');
+    this.buffer = [];
+    this.isWriting = true;
+
+    if (this.currentStream && this.currentStream.writable) {
+      this.currentStream.write(chunk, (err) => {
+        this.isWriting = false;
+        if (err) {
+          this.handleStreamError(err);
+        }
+      });
+    } else {
+      this.isWriting = false;
+    }
+  }
+
+  /**
+   * 进程退出时的同步阻塞写入
    */
   public flushBufferSync() {
     if (this.buffer.length === 0) return;
@@ -206,7 +267,6 @@ class Logger {
 
     if (!this.isDegraded && this.currentFilePath) {
       try {
-        // 使用同步写入确保退出前强制刷入磁盘
         fs.appendFileSync(this.currentFilePath, chunk, 'utf8');
       } catch (err: any) {
         process.stderr.write(`[Logger Exit Flush Error]: ${err.message}\n`);
@@ -214,61 +274,57 @@ class Logger {
     }
   }
 
-  /**
-   * 写入内部缓冲
-   */
-  private writeToFile(level: string, message: string) {
-    if (!this.fileLog || this.isDegraded) return;
-
-    const cleanMsg = message.replace(ANSI_REGEX, '');
-    const logLine = `[${this.getTimestamp()}] [${level.toUpperCase()}] ${this.prefix ? `[${this.prefix}] ` : ''}${cleanMsg}\n`;
-
-    this.buffer.push(logLine);
-
-    // 达到阈值立即触发刷新
-    if (this.buffer.length >= this.bufferSize) {
+  private startFlushTimer() {
+    if (this.flushTimer) clearInterval(this.flushTimer);
+    this.flushTimer = setInterval(() => {
       this.flushBufferAsync();
-    }
+    }, this.flushInterval);
+    this.flushTimer.unref(); // 保证定时器不阻塞事件循环退出
   }
 
-  /**
-   * 自动清理过期日志文件（> maxDays）
-   */
+  // ---------- 自动清理（修复正则注入与时区偏差） ----------
   private async cleanOldLogs(): Promise<void> {
     if (this.maxDays <= 0) return;
 
     try {
       const files = await fs.promises.readdir(this.logDir);
-      const logFilePattern = new RegExp(`^${this.filePrefix}-(\\d{4}-\\d{2}-\\d{2})\\.log$`);
-      const nowMs = Date.now();
+      // 安全转义前缀，防止正则注入
+      const safePrefix = escapeRegExp(this.filePrefix);
+      const pattern = new RegExp(`^${safePrefix}-(\\d{4})-(\\d{2})-(\\d{2})\\.log$`);
+      
+      const now = new Date();
+      // 获取今天 00:00:00 的本地时间毫秒数
+      const todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
       const maxAgeMs = this.maxDays * 24 * 60 * 60 * 1000;
 
       for (const file of files) {
-        const match = file.match(logFilePattern);
+        const match = file.match(pattern);
         if (match) {
-          const fileDateStr = match[1];
-          const fileTime = new Date(fileDateStr).getTime();
+          const year = parseInt(match[1], 10);
+          const month = parseInt(match[2], 10) - 1;
+          const day = parseInt(match[3], 10);
+          
+          // 基于本地年月日构建时间戳（避免 UTC 偏差）
+          const fileDateMs = new Date(year, month, day).getTime();
 
-          // 解析日期并对比
-          if (!isNaN(fileTime) && nowMs - fileTime > maxAgeMs) {
-            const targetPath = path.join(this.logDir, file);
-            await fs.promises.unlink(targetPath).catch(() => {});
+          if (!isNaN(fileDateMs) && (todayStartMs - fileDateMs) >= maxAgeMs) {
+            await fs.promises.unlink(path.join(this.logDir, file)).catch(() => {});
           }
         }
       }
     } catch (err: any) {
-      // 清理日志失败不影响 CLI 运行，记录 debug 即可
       if (this.level === 'debug') {
         process.stderr.write(`[Logger Cleanup Warn]: ${err.message}\n`);
       }
     }
   }
 
-  /**
-   * 注册生命周期钩子，防止退出时丢日志
-   */
+  // ---------- 生命周期钩子 ----------
   private registerExitHooks() {
-    const onExit = () => {
+    const handleExit = () => {
+      if (this.isExiting) return;
+      this.isExiting = true;
+
       this.flushBufferSync();
       if (this.currentStream) {
         try {
@@ -277,24 +333,22 @@ class Logger {
       }
     };
 
-    // 进程自然退出与异常捕获
-    process.once('exit', onExit);
-    process.once('beforeExit', onExit);
+    // 绑定退出事件
+    process.once('exit', handleExit);
+    process.once('beforeExit', handleExit);
+    
+    // 监听系统中断信号（刷盘后恢复默认退出码）
     process.once('SIGINT', () => {
-      onExit();
+      handleExit();
       process.exit(130);
     });
     process.once('SIGTERM', () => {
-      onExit();
+      handleExit();
       process.exit(143);
-    });
-    process.once('uncaughtException', (err) => {
-      this.error('Uncaught Exception:', err);
-      onExit();
-      process.exit(1);
     });
   }
 
+  // ---------- 辅助格式化工具 ----------
   private canLog(targetLevel: LogLevel): boolean {
     return LOG_LEVELS[this.level] >= LOG_LEVELS[targetLevel];
   }
@@ -307,62 +361,28 @@ class Logger {
     return args
       .map((arg) => {
         if (arg instanceof Error) {
-          return this.level === 'debug' ? arg.stack || arg.message : arg.message;
+          if (this.alwaysShowStack) {
+            return arg.stack || `${arg.name}: ${arg.message}`;
+          }
+          return arg.message;
         }
         if (typeof arg === 'object' && arg !== null) {
-          return util.inspect(arg, { colors: false, depth: 5 });
+          return util.inspect(arg, { colors: false, depth: 5, breakLength: 80 });
         }
         return String(arg);
       })
       .join(' ');
   }
-
-  // --- 公共 API ---
-
-  info(...args: any[]) {
-    if (!this.canLog('info')) return;
-    const msg = this.formatArgs(args);
-    console.log(this.formatConsolePrefix() + pc.cyan('ℹ'), msg);
-    this.writeToFile('INFO', msg);
-  }
-
-  success(...args: any[]) {
-    if (!this.canLog('info')) return;
-    const msg = this.formatArgs(args);
-    console.log(this.formatConsolePrefix() + pc.green('✔'), msg);
-    this.writeToFile('SUCCESS', msg);
-  }
-
-  warn(...args: any[]) {
-    if (!this.canLog('warn')) return;
-    const msg = this.formatArgs(args);
-    console.warn(this.formatConsolePrefix() + pc.yellow('⚠'), msg);
-    this.writeToFile('WARN', msg);
-  }
-
-  error(...args: any[]) {
-    if (!this.canLog('error')) return;
-    const msg = this.formatArgs(args);
-    console.error(this.formatConsolePrefix() + pc.red('✖'), msg);
-    this.writeToFile('ERROR', msg);
-  }
-
-  debug(...args: any[]) {
-    if (!this.canLog('debug')) return;
-    const msg = this.formatArgs(args);
-    console.debug(this.formatConsolePrefix() + pc.magenta('⚙ [DEBUG]'), msg);
-    this.writeToFile('DEBUG', msg);
-  }
 }
 
-// 导出单例
+// ==================== 导出默认单例 ====================
 export const logger = new Logger({
-  fileLog: true,
-  logDir: path.resolve(process.cwd(), 'logs'),
   filePrefix: 'open-cli',
-  maxDays: 15,          // 超过 15 天自动清理
-  bufferSize: 100,      // 缓冲 100 条批量写
-  flushInterval: 200,   // 200ms 定时落盘
+  maxDays: 15,
+  bufferSize: 100,
+  maxBufferSize: 5000,
+  flushInterval: 200,
+  alwaysShowStack: true,
 });
 
 export { Logger };

@@ -1,2 +1,13 @@
-dist
-node_modules
+node_modules/
+dist/
+dist-test/
+*.tgz
+.env
+package-lock.json
+./.idea
+.pi/
+/build/
+.DS_Store
+.meishi/
+.vscode
+logs/
