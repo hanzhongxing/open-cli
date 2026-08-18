@@ -7,10 +7,10 @@
     "open-cli": "./dist/cli.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js"
+    "dev": "cross-env NODE_ENV=dev tsx src/cli.ts",
+    "offline": "cross-env NODE_ENV=offline node dist/cli.js",
+    "online": "cross-env NODE_ENV=online node dist/cli.js"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "cross-env": "^10.1.0",
     "tsx": "^4.23.12",
     "typescript": "^5.8.2"
   }

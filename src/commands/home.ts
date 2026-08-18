@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { select, outro, isCancel } from '@clack/prompts';
 import { logger } from '../lib/logger.js';
-import * as consts from '../constant/config.js'; 
+import * as consts from '../constant/constant.js'; 
 
 import { customAction } from './custom.js';
 
