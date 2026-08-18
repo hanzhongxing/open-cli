@@ -7,6 +7,7 @@ import pc from 'picocolors';
 const execAsync = promisify(exec);
 
 const command: ScriptCommand = {
+  name:'exec',
   description: '执行系统 Shell 命令',
   usage: 'exec <command>',
   aliases: ['run', '$'],

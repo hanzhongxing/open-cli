@@ -10,6 +10,8 @@ export async function customAction(): Promise<void> {
   // 1. 批量加载 scripts 下的所有命令
   const commands = await loadScriptCommands();
 
+  console.log(commands);
+
   console.log(pc.cyan(`\n进入自定义命令环境 (已加载 ${commands.size} 个命令)，输入 help 查看可用命令，输入 exit 退出。\n`));
 
   const rl = readline.createInterface({ input, output });
