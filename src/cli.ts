@@ -47,8 +47,8 @@ console.log();
 const program = new Command();
 
 program
-  .name('open-cli')
-  .description('TypeScript CLI 工具 open cli')
+  .name('socket-cli')
+  .description('TypeScript CLI 工具 socket cli')
   .version(packageJson.version)
   .action(async () => {
      await (home as any)._actionHandler([]);
