@@ -4,6 +4,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { loadScriptCommands } from '../lib/loader.js';
 import type { ScriptCommand } from '../types/command.js';
+import { chatAction } from '../scripts/chat.js';
 import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 
@@ -54,7 +55,7 @@ export async function customAction(): Promise<void> {
           logger.error(pc.red(`命令执行出错: ${err.message}`));
         }
       } else {
-        logger.error(pc.red(`未知命令: "${commandName}"，输入 help 查看帮助。`));
+        await chatAction([line]);
       }
     }
   } finally {

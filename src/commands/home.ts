@@ -4,6 +4,7 @@ import { logger } from '../lib/logger.js';
 import * as consts from '../constant/constant.js'; 
 
 import { customAction } from './custom.js';
+import { userChatAction } from './userChat.js';
 
 const todos: string[] = [];
 
@@ -19,6 +20,7 @@ export const home = new Command('home')
         message: '---请选择操作---',
         options: [
           { value: 'custom', label: '自定义命令' },
+          { value: 'chat', label: '对话' },
           { value: 'exit', label: '拜拜' },
         ],
       });
@@ -33,9 +35,11 @@ export const home = new Command('home')
         case 'exit':
           exit = true;
           break;
+        case 'chat':
+          await userChatAction();
+          break; 
         default:
           logger.error('未知操作');
-      
       }
     }
     outro('再见！');
