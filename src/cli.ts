@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 import packageJson from '../package.json' with { type: 'json' };
 import { logger } from './lib/logger.js';
 import { home } from './commands/home.js';
+import { BANNER } from './constant/banner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,9 +38,7 @@ logger.info(`当前环境: ${config.env}`);
 
 function showBanner() {
   console.clear();
-  const bannerPath = path.join(__dirname, 'constant/banner.txt');
-  const bannerText = fs.readFileSync(bannerPath, 'utf-8');
-  console.log(chalk.cyan(bannerText));
+  console.log(chalk.cyan(BANNER));
 }
 if (process.stdout.isTTY) {
     await showBanner();
