@@ -8,4 +8,4 @@ examples
 
 hi socket 
 
-> hello socket ~~~
+> Hello, socket! 来了老弟~~~
