@@ -47,8 +47,8 @@ console.log();
 const program = new Command();
 
 program
-  .name('socket-cli')
-  .description('TypeScript CLI 工具 socket cli')
+  .name('piaosi-cli')
+  .description('TypeScript CLI 工具 piaosi cli')
   .version(packageJson.version)
   .action(async () => {
      await (home as any)._actionHandler([]);
