@@ -47,8 +47,8 @@ console.log();
 const program = new Command();
 
 program
-  .name('piaosi-cli')
-  .description('TypeScript CLI 工具 piaosi cli')
+  .name('open-cli')
+  .description('TypeScript CLI 工具 open cli')
   .version(packageJson.version)
   .action(async () => {
      await (home as any)._actionHandler([]);
