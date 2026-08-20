@@ -8,6 +8,5 @@ package-lock.json
 .pi/
 /build/
 .DS_Store
-.meishi/
 .vscode
 logs/
