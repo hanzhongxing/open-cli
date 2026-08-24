@@ -11,18 +11,16 @@ const command: ScriptCommand = {
   aliases: ['chat'],
   async run(args) {
     if (!args.length) {
-      logger.warn(pc.red('请输入你的问题，例如: chat 你好'));
+      logger.warn(pc.red('请输入你的问题，例如: hello'));
       return;
     }
-    logger.info(`你说了: ${args.join(' ')}`);
-    const question = args.join(' ');
-    logger.info(`正在思考你的问题: ${question}`);
+    await chatAction(args);
   }
 };
 
 export async function chatAction(args: string[]): Promise<void> {
   if (!args.length) {
-    logger.warn(pc.red('请输入你的问题，例如: chat 你好'));
+    logger.warn(pc.red('请输入你的问题，例如: hello'));
     return;
   }
   logger.info(`你说了: ${args.join(' ')}`);
