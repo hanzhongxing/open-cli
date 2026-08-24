@@ -9,5 +9,5 @@ package-lock.json
 /build/
 .DS_Store
 .vscode
-logs
-data
+logs/
+data/
