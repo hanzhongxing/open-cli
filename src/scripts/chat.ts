@@ -20,7 +20,6 @@ const command: ScriptCommand = {
   }
 };
 
-
 export async function chatAction(args: string[]): Promise<void> {
   if (!args.length) {
     logger.warn(pc.red('请输入你的问题，例如: chat 你好'));
