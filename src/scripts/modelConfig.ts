@@ -107,7 +107,7 @@ async function modifyModel(args: string[]) {
 const command: ScriptCommand = {
   name:'model',
   description: '配置模型',
-  usage: 'model <command> [args]',
+  usage: 'model <command> [args], 可用命令: add, ls/list/view, modify/update, help',
   aliases: ['model', 'set model','model set'],
   async run(args) {
     const subcommand = args[0];
@@ -116,14 +116,18 @@ const command: ScriptCommand = {
       case 'add':
         await addModel(args.slice(1));
         break;
+      case 'list':
       case 'view':
         await viewModels();
         break;
+      case 'update':
       case 'modify':
         await modifyModel(args.slice(1));
         break;
+      case 'help':
+        logger.info(`用法: ${command.usage}`);
+        break;
       default:
-        logger.warn(`未知命令: ${subcommand}`);
         logger.info(`用法: ${command.usage}`);
         break;
     }
