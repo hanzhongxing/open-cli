@@ -106,7 +106,8 @@ export async function chatAction(args: string[]): Promise<void> {
 }
 
 /**
- * 处理流式响应 (SSE: Server-Sent Events)
+ * 高性能实时流式解析器 (SSE 状态机)
+ * 只要网络层有可用 token 数据，立即实时触发输出，残缺包自动缓存至下一轮
  */
 async function processStream(
   stream: ReadableStream<Uint8Array>,
@@ -117,35 +118,49 @@ async function processStream(
   let accumulatedText = '';
   let buffer = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    logger.info(`接收到数据块: ${buffer}`); // 调试日志
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? ''; // 保留未完成的行
+      // 1. 解码当前数据块并拼入缓冲区
+      buffer += decoder.decode(value, { stream: true });
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith(':')) continue; // 跳过空行或注释行
+      // 2. 循环快速扫描缓冲区中所有完整的 SSE 行 (以 \n 结尾)
+      let lineEndIndex: number;
+      while ((lineEndIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, lineEndIndex).trim();
+        // 截断已读取的部分，保留剩余未完成的数据
+        buffer = buffer.slice(lineEndIndex + 1);
 
-      if (trimmedLine.startsWith('data: ')) {
-        const dataStr = trimmedLine.replace(/^data:\s*/, '');
-        if (dataStr === '[DONE]') return accumulatedText;
+        // 3. 快速过滤无效行或心跳注释
+        if (!line || line.startsWith(':')) continue;
 
-        try {
-          const json = JSON.parse(dataStr);
-          const deltaContent = json.choices?.[0]?.delta?.content;
-          if (deltaContent) {
-            accumulatedText += deltaContent;
-            onToken(deltaContent);
+        if (line.startsWith('data:')) {
+          const dataStr = line.slice(5).trim(); // 剔除 'data:' 前缀
+
+          // 遇到结束标识立即退出
+          if (dataStr === '[DONE]') {
+            return accumulatedText;
           }
-        } catch {
-          // 忽略半包导致的解析失败，等待下一块拼接
+
+          try {
+            const json = JSON.parse(dataStr);
+            const deltaContent = json.choices?.[0]?.delta?.content;
+            
+            // 4. 核心：一旦提取到文字，毫秒级立即回调输出
+            if (deltaContent) {
+              accumulatedText += deltaContent;
+              onToken(deltaContent);
+            }
+          } catch {
+            // 如果 JSON 格式异常则直接忽略该帧，不阻塞主流程
+          }
         }
       }
     }
+  } finally {
+    reader.releaseLock();
   }
 
   return accumulatedText;

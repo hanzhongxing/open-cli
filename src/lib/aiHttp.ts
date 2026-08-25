@@ -18,19 +18,19 @@ export async function chatFetch(url:string,model:string,apikey:string,messages:a
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Accept': 'text/event-stream',
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apikey}`,
+                'Authorization': `Bearer ${apikey}`
             },
             body: JSON.stringify({
                 model: model,
                 messages: messages,
                 stream: true,
-                sceneId: 52222,
+                sceneId: 1,
                 extra_body:{
                     'user':'open-cli',
-                    'sceneId':52222
-                }
+                    'sceneId':1
+                },
+                temperature: 1.0,
             }),
             signal: combinedSignal
         });
