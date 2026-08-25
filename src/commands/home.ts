@@ -19,9 +19,9 @@ export const home = new Command('home')
       const action = await select({
         message: '---请选择操作---',
         options: [
-          { value: 'custom', label: '自定义命令' },
+          { value: 'custom', label: '命令行' },
           { value: 'chat', label: '对话' },
-          { value: 'exit', label: '拜拜' },
+          { value: 'exit', label: '退出' },
         ],
       });
  
