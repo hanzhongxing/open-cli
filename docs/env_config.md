@@ -2,3 +2,8 @@
 
 图片转化 生成 ASCII 文本
 https://www.text-image.com/convert/ascii.html
+
+## publish 
+npm login 
+npm publish --access public
+
