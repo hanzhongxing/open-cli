@@ -47,7 +47,10 @@ export async function chatAction(args: string[]): Promise<void> {
 
   // 1. 读取并校验模型配置
   const modelConfig = await loadModelConfig();
-  if (!modelConfig) return;
+  if (!modelConfig){
+    logger.error(pc.red('❌ 模型配置无效，请先使用 model 命令进行配置'));
+    return;
+  };
 
   // 2. 读取并管理历史上下文
   const history = await loadChatHistory();
