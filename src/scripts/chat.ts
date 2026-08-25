@@ -4,6 +4,7 @@ import type { ScriptCommand } from '../types/command.js';
 import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 import { readJsonData, writeJsonData } from '../lib/jsonDataUtil.js';
+import { chatFetch } from '../lib/aiHttp.js';
 
 // --- 类型定义 ---
 export interface ChatMessage {
@@ -21,7 +22,7 @@ export interface ModelConfig {
 
 const MODEL_CONFIG_FILE = 'model.json';
 const HISTORY_MESSAGE_FILE = 'messages.json';
-const MAX_HISTORY_LENGTH = 20; // 最多保留的历史消息条数（防止 token 溢出）
+const MAX_HISTORY_LENGTH = 100;
 
 const command: ScriptCommand = {
   name: 'chat',
@@ -60,32 +61,19 @@ export async function chatAction(args: string[]): Promise<void> {
   };
   process.once('SIGINT', sigintHandler);
 
-  process.stdout.write(pc.cyan('🤖 AI: '));
+  process.stdout.write(pc.cyan('🤖: '));
 
   let fullResponse = '';
 
   try {
-    const response = await fetch(modelConfig.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${modelConfig.apikey}`,
-      },
-      body: JSON.stringify({
-        model: modelConfig.model,
-        messages: currentMessages,
-        stream: true, // 开启流式响应
-        temperature: modelConfig.temperature ?? 0.7,
-      }),
-      signal: abortController.signal,
-    });
-
+    const response = await chatFetch(modelConfig.url, modelConfig.model, modelConfig.apikey, currentMessages,abortController.signal, 30000); // 10秒超时
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       throw new Error(`HTTP ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     if (!response.body) {
+      logger.error(pc.red('❌ 响应体为空，无法读取流数据。'));
       throw new Error('响应体为空，无法读取流数据。');
     }
 
@@ -134,6 +122,7 @@ async function processStream(
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
+    logger.info(`接收到数据块: ${buffer}`); // 调试日志
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? ''; // 保留未完成的行
 

@@ -6,7 +6,6 @@ import { promises as fs } from 'node:fs';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
-
 async function readModelConfig(fileName: string): Promise<[]> {
   try {
     const content = await fs.readFile(path.join(DATA_DIR, fileName), 'utf-8');
@@ -32,7 +31,6 @@ export async function writeJsonData(fileName: string, data: any): Promise<void> 
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf-8');
-    logger.success(`数据已保存到 ${fileName}`);
   } catch (error: any) {
     logger.error(`保存数据失败: ${error.message}`);
   }
