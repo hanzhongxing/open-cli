@@ -5,6 +5,7 @@ import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 import { readJsonData, writeJsonData } from '../lib/jsonDataUtil.js';
 import { chatFetch } from '../lib/aiHttp.js';
+import { SmoothTypewriter } from '../lib/typewriter.js';
 
 // --- 类型定义 ---
 export interface ChatMessage {
@@ -56,11 +57,15 @@ export async function chatAction(args: string[]): Promise<void> {
   const history = await loadChatHistory();
   const currentMessages: ChatMessage[] = [...history, { role: 'user', content: question }];
 
+    // 初始化平滑打字机 (自然节奏 25ms，高速 8ms)
+  const typewriter = new SmoothTypewriter(8, 25);
+
   // 3. 设置中止控制器（用于 Ctrl+C 优雅取消）
   const abortController = new AbortController();
   const sigintHandler = () => {
     logger.info(pc.yellow('\n\n[操作已取消] 正在中断输出...'));
     abortController.abort();
+    typewriter.flush(); // 用户按 Ctrl+C 时立即倒出剩余文字
   };
   process.once('SIGINT', sigintHandler);
 
@@ -80,10 +85,13 @@ export async function chatAction(args: string[]): Promise<void> {
       throw new Error('响应体为空，无法读取流数据。');
     }
 
-    // 4. 解析流式数据并实现打字机效果
-    fullResponse = await processStream(response.body, (chunk) => {
-      process.stdout.write(chunk); // 实时输出字符
+    const fetchPromise = processStream(response.body, (token) => {
+      typewriter.write(token); // 立即推入平滑队列
     });
+
+    fullResponse = await fetchPromise;
+
+    await typewriter.end();
 
     process.stdout.write('\n'); // 换行
 
