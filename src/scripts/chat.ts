@@ -189,9 +189,9 @@ async function loadModelConfig(): Promise<ModelConfig | null> {
       return null;
     }
 
-    const config = configs.find(c => c.enable) || configs[0];
-    if (!config.url || !config.apikey || !config.model) {
-      logger.error(pc.red(`❌ 缺少核心配置 (url / apikey / model)`));
+    const config = configs.find(c => c.enable);
+    if (!config) {
+      logger.error(pc.red(`❌ 没有找到启用的模型配置，请使用 model 命令启用一个模型`));
       return null;
     }
     return config;

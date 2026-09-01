@@ -42,12 +42,12 @@ async function writeModelConfig(config: ModelConfig[]) {
 }
 
 async function addModel(args: string[]) {
-  if (args.length < 4) {
-    logger.warn('用法: model add <model> <url> <apikey> <alias>');
+  if (args.length < 5) {
+    logger.warn('用法: model add <model> <url> <apikey> <alias> <enable>');
     return;
   }
 
-  const [model, url, apikey, alias] = args;
+  const [model, url, apikey, alias, enableStr] = args;
   const config = await readModelConfig();
 
   const existingModelIndex = config.findIndex(c => c.alias === alias);
@@ -55,9 +55,12 @@ async function addModel(args: string[]) {
     logger.warn(`别名为 "${alias}" 的模型已存在，请使用 "model modify" 命令进行修改。`);
     return;
   }
-
-  config.push({ model, url, apikey, alias, enable: false });
+  const addConfig = { model, url, apikey, alias, enable: enableStr.toLowerCase() === 'true' };
+  config.push(addConfig);
   await writeModelConfig(config);
+  if(addConfig.enable){
+    await resetEnableStatus(alias);
+  }
   logger.success(`模型 "${alias}" 添加成功。`);
 }
 
@@ -105,9 +108,42 @@ async function modifyModel(args: string[]) {
     const enableValue = newValue.toLowerCase() === 'true';
     modelToModify.enable = enableValue;
     await writeModelConfig(config);
+    if (enableValue) {
+      await resetEnableStatus(alias);
+    } 
     logger.success(`模型 "${alias}" 的 "${property}" 已更新。`);
   } else {
     logger.error(`无效属性: ${property}。可用属性: model, url, apikey, enable。`);
+  }
+}
+
+async function removeModel(args: string[]) {
+  if (args.length < 1) {
+    logger.warn('用法: model remove <alias>');
+    return;
+  }
+
+  const [alias] = args;
+  const config = await readModelConfig();
+  const modelIndex = config.findIndex(c => c.alias === alias);
+
+  if (modelIndex === -1) {
+    logger.error(`未找到别名为 "${alias}" 的模型。`);
+    return;
+  }
+
+  config.splice(modelIndex, 1);
+  await writeModelConfig(config);
+  logger.success(`模型 "${alias}" 已删除。`);
+} 
+
+async function resetEnableStatus(alias: string) {
+  const config = await readModelConfig();
+  for (const model of config) {
+    if (model.enable && model.alias !== alias) {
+      model.enable = false;
+      await writeModelConfig(config);
+    }
   }
 }
 
@@ -131,6 +167,11 @@ const command: ScriptCommand = {
       case 'update':
       case 'modify':
         await modifyModel(args.slice(1));
+        break;
+      case 'delete':
+      case 'remove':
+      case 'del':
+        await removeModel(args.slice(1));
         break;
       case 'help':
         logger.info(`用法: ${command.usage}`);
