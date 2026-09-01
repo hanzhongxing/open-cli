@@ -17,6 +17,7 @@ export interface ModelConfig {
   url: string;
   apikey: string;
   model: string;
+  enable: boolean;
   temperature?: number;
   max_tokens?: number;
 }
@@ -187,7 +188,8 @@ async function loadModelConfig(): Promise<ModelConfig | null> {
       logger.error(pc.red(`❌ 配置文件 ${MODEL_CONFIG_FILE} 为空或格式错误`));
       return null;
     }
-    const config = configs[0];
+
+    const config = configs.find(c => c.enable) || configs[0];
     if (!config.url || !config.apikey || !config.model) {
       logger.error(pc.red(`❌ 缺少核心配置 (url / apikey / model)`));
       return null;

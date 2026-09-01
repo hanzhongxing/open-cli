@@ -14,6 +14,7 @@ interface ModelConfig {
   url: string;
   apikey: string;
   alias: string;
+  enable: boolean;
 }
 
 async function readModelConfig(): Promise<ModelConfig[]> {
@@ -55,7 +56,7 @@ async function addModel(args: string[]) {
     return;
   }
 
-  config.push({ model, url, apikey, alias });
+  config.push({ model, url, apikey, alias, enable: false });
   await writeModelConfig(config);
   logger.success(`模型 "${alias}" 添加成功。`);
 }
@@ -74,13 +75,14 @@ async function viewModels() {
     logger.info(`     模型: ${model.model}`);
     logger.info(`     URL: ${model.url}`);
     logger.info(`     API Key: ${model.apikey ? '********' : '无'}`); // 隐藏 API Key
+    logger.info(`     启用: ${model.enable ? '是' : '否'}`);
   });
 }
 
 async function modifyModel(args: string[]) {
   if (args.length < 2) {
     logger.warn('用法: model modify <alias> <property> <newValue>');
-    logger.info('可用属性: model, url, apikey');
+    logger.info('可用属性: model, url, apikey, enable');
     return;
   }
 
@@ -99,8 +101,13 @@ async function modifyModel(args: string[]) {
     (modelToModify as any)[property] = newValue; // Using 'any' for direct property assignment
     await writeModelConfig(config);
     logger.success(`模型 "${alias}" 的 "${property}" 已更新。`);
+  } else if (property === 'enable') {
+    const enableValue = newValue.toLowerCase() === 'true';
+    modelToModify.enable = enableValue;
+    await writeModelConfig(config);
+    logger.success(`模型 "${alias}" 的 "${property}" 已更新。`);
   } else {
-    logger.error(`无效属性: ${property}。可用属性: model, url, apikey。`);
+    logger.error(`无效属性: ${property}。可用属性: model, url, apikey, enable。`);
   }
 }
 
