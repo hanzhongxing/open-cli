@@ -1,22 +1,16 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
 import chalk from 'chalk';
-import http from 'node:http';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config } from './config/index.js';
 import { Command } from 'commander';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
 import packageJson from '../package.json' with { type: 'json' };
+
+// import { config } from './config/index.js';
 import { logger } from './lib/logger.js';
 import { home } from './commands/home.js';
 import { BANNER } from './constant/banner.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Node.js 版本检查
+// 1. Node.js 版本前置检查
 const nodeVersion = process.version.replace('v', '');
 const [major] = nodeVersion.split('.').map(Number);
 if (major < 20) {
@@ -25,32 +19,38 @@ if (major < 20) {
   process.exit(1);
 }
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ status: 'ok', env: config.env }));
-});
-
-logger.info(`当前环境: ${config.env}`);
-// fixme 此处可能用不上
-// server.listen(config.server.port, config.server.host, () => {
-//   // logger.info(`[${config.env.toUpperCase()}] Server running at http://${config.server.host}:${config.server.port}`);
-// });
-
+// 2. Banner 展示函数
 function showBanner() {
-  console.clear();
-  console.log(chalk.cyan(BANNER));
+  if (process.stdout.isTTY) {
+    console.clear();
+    console.log(chalk.cyan(BANNER));
+    console.log();
+  }
 }
-if (process.stdout.isTTY) {
-    await showBanner();
-}
-console.log();
+
+// 3. 配置 Commander
 const program = new Command();
 
 program
   .name('open-cli')
-  .description('TypeScript CLI 工具 open cli')
-  .version(packageJson.version)
+  .description('TypeScript CLI 工具 open-cli')
+  // 当用户执行 -v / --version 时，Commander 会打印版本后直接安全退出，不会执行下面的 action
+  .version(packageJson.version, '-v, --version', '查看当前版本号')
+  // 用户直接运行 `open-cli` 时触发此 action
   .action(async () => {
-     await (home as any)._actionHandler([]);
+    // 仅在进入主交互界面时清屏并打印 Banner
+    showBanner();
+    
+    // 如果需要提示当前环境，放在进入首页时打印
+    // logger.info(`当前环境: ${config.env}`);
+
+    const handler = (home as any)._actionHandler;
+    if (typeof handler === 'function') {
+      await handler.call(home, []);
+    } else if (typeof (home as any)._actionHandler === 'function') {
+      await (home as any)._actionHandler([]);
+    }
   });
-program.parse();
+
+// 4. 解析命令行参数
+program.parse(process.argv);

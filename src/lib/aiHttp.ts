@@ -25,7 +25,6 @@ export async function chatFetch(url:string,model:string,apikey:string,messages:a
                 model: model,
                 messages: messages,
                 stream: true,
-                sceneId: 1,
                 extra_body:{
                     'user':'open-cli',
                     'sceneId':1
