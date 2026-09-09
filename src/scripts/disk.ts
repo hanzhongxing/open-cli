@@ -4,6 +4,9 @@ import { spawn } from 'child_process';
 import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
 
+const os = require('os');
+const platform = os.platform();
+
 const viewCacheCMD = 'find ~/Library/Caches -type f -atime +30 -print';
 const cleanCacheCMD = 'find ~/Library/Caches -type f -atime +30 -delete';
 
@@ -18,6 +21,11 @@ const command: ScriptCommand = {
       return;
     }
 
+    if (platform === 'win32') {
+      console.log('当前命令不支持 Windows 环境');
+      return;
+    }
+    
     const commandName = args[0];
 
     switch (commandName) {
