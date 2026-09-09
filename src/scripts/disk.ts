@@ -1,4 +1,4 @@
-// src/scripts/freeDisk.ts
+// src/scripts/disk.ts
 import type { ScriptCommand } from '../types/command.js';
 import { spawn } from 'child_process';
 import { logger } from '../lib/logger.js';
@@ -25,7 +25,7 @@ const command: ScriptCommand = {
       console.log('当前命令不支持 Windows 环境');
       return;
     }
-    
+
     const commandName = args[0];
 
     switch (commandName) {
