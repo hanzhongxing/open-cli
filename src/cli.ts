@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import packageJson from '../package.json' with { type: 'json' };
 
-// import { config } from './config/index.js';
 import { logger } from './lib/logger.js';
 import { home } from './commands/home.js';
 import { BANNER } from './constant/banner.js';
@@ -36,14 +35,13 @@ program
   .description('TypeScript CLI 工具 open-cli')
   // 当用户执行 -v / --version 时，Commander 会打印版本后直接安全退出，不会执行下面的 action
   .version(packageJson.version, '-v, --version', '查看当前版本号')
+  // 帮助信息
+  .helpOption('-h, --help', '显示帮助信息')
   // 用户直接运行 `open-cli` 时触发此 action
   .action(async () => {
     // 仅在进入主交互界面时清屏并打印 Banner
     showBanner();
     
-    // 如果需要提示当前环境，放在进入首页时打印
-    // logger.info(`当前环境: ${config.env}`);
-
     const handler = (home as any)._actionHandler;
     if (typeof handler === 'function') {
       await handler.call(home, []);
