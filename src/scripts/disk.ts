@@ -1,10 +1,9 @@
-// src/scripts/disk.ts
+// src/scripts/freeDisk.ts
 import type { ScriptCommand } from '../types/command.js';
 import { spawn } from 'child_process';
 import { logger } from '../lib/logger.js';
 import pc from 'picocolors';
-
-const os = require('os');
+import os from 'node:os';
 const platform = os.platform();
 
 const viewCacheCMD = 'find ~/Library/Caches -type f -atime +30 -print';
@@ -25,7 +24,7 @@ const command: ScriptCommand = {
       console.log('当前命令不支持 Windows 环境');
       return;
     }
-
+    
     const commandName = args[0];
 
     switch (commandName) {
